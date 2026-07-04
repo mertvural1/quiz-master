@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { translate } from '../lang';
-import { GameConstants } from '../enums/game';
+import { getLanguage, translate } from '../lang';
+import { AppLanguage, GameConstants } from '../enums/game';
 import type { NormalizedQuestion, TriviaQuestionItem } from '../types/game';
 import { normalizeQuestion, prizeLevels, readCachedQuestions, sortQuestionsByDifficulty, writeCachedQuestions } from '../lib/quiz';
 
@@ -119,7 +119,10 @@ export function useQuizGame() {
     setLoading(true);
 
     try {
-      const response = await fetch(import.meta.env.VITE_TRIVIA_API_URL);
+      const language = getLanguage();
+      const apiUrl = new URL(import.meta.env.VITE_TRIVIA_API_URL);
+      apiUrl.searchParams.set('language', language === AppLanguage.English ? AppLanguage.English : AppLanguage.Turkish);
+      const response = await fetch(apiUrl.toString());
       const payload = await response.json().catch(() => null);
 
       if (!response.ok || payload?.response_code !== 0) {
@@ -143,15 +146,6 @@ export function useQuizGame() {
       throw new Error('invalid');
     } catch (error) {
       console.error('Open Trivia API fetch failed', error);
-      const cachedQuestions = readCachedQuestions();
-      const normalizedCache = (await Promise.all((Array.isArray(cachedQuestions) ? cachedQuestions : []).map((item) => normalizeQuestion(item)))).filter(Boolean) as NormalizedQuestion[];
-      if (normalizedCache.length === GameConstants.QuestionCount) {
-        setQuestions(normalizedCache);
-        resetGameState();
-        setLoading(false);
-        return;
-      }
-
       setQuestions([]);
       setLoading(false);
       setFeedback(translate('questionsFailed'));

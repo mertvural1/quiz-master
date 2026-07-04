@@ -1,4 +1,5 @@
-import { DifficultyRank, GameConstants, PrizeLevelValue } from '../enums/game';
+import { AppLanguage, DifficultyRank, GameConstants, PrizeLevelValue } from '../enums/game';
+import { getLanguage } from '../lang';
 import type { NormalizedQuestion, TriviaQuestionItem } from '../types/game';
 
 export const prizeLevels = [
@@ -57,20 +58,6 @@ export function shuffle<T>(array: T[]) {
   return copy;
 }
 
-async function translateText(value: string) {
-  if (typeof value !== 'string' || !value.trim()) return value;
-  try {
-    const response = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=tr&dt=t&q=${encodeURIComponent(value)}`);
-    const payload = await response.json().catch(() => null);
-    if (Array.isArray(payload) && payload[0]) {
-      return payload[0].map((item: Array<string | null>) => item[0]).join('');
-    }
-  } catch (error) {
-    console.error('Translation failed', error);
-  }
-  return value;
-}
-
 function decodeTriviaValue(value: string) {
   if (typeof value !== 'string') return '';
   try {
@@ -85,18 +72,45 @@ function decodeTriviaValue(value: string) {
   return value;
 }
 
+async function translateText(value: string) {
+  if (typeof value !== 'string' || !value.trim()) return value;
+
+  const language = getLanguage();
+  if (language !== AppLanguage.Turkish) return value;
+
+  try {
+    const response = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=tr&dt=t&q=${encodeURIComponent(value)}`);
+    const payload = await response.json().catch(() => null);
+
+    if (Array.isArray(payload) && Array.isArray(payload[0])) {
+      return payload[0].map((item) => (Array.isArray(item) ? item[0] : '')).join('');
+    }
+  } catch (error) {
+    console.error('Failed to translate trivia text', error);
+  }
+
+  return value;
+}
+
 export async function normalizeQuestion(item?: TriviaQuestionItem): Promise<NormalizedQuestion | null> {
   if (!item) return null;
 
   if (typeof item.question === 'string' && Array.isArray(item.options) && typeof item.answer === 'string') {
-    const rawQuestion = item.question;
-    const rawOptions = item.options.filter((option): option is string => typeof option === 'string').slice(0, GameConstants.OptionCount);
+    const rawQuestion = decodeTriviaValue(item.question);
+    const rawOptions = item.options.map(decodeTriviaValue).filter(Boolean).slice(0, GameConstants.OptionCount);
     if (rawOptions.length < GameConstants.OptionCount) return null;
-    const [question, ...translatedOptions] = await Promise.all([translateText(rawQuestion), ...rawOptions.map((option) => translateText(option))]);
+    const answer = decodeTriviaValue(item.answer);
+    const options = shuffle([answer, ...rawOptions.filter((option) => option !== answer)]).filter(Boolean);
+    const [translatedQuestion, translatedAnswer, ...translatedOptions] = await Promise.all([
+      translateText(rawQuestion),
+      translateText(answer),
+      ...options.slice(0, GameConstants.OptionCount).map((option) => translateText(option)),
+    ]);
+
     return {
-      question,
+      question: translatedQuestion,
       options: translatedOptions.slice(0, GameConstants.OptionCount),
-      answer: translatedOptions[0] || question,
+      answer: translatedAnswer,
       difficulty: item.difficulty || 'Kolay',
     };
   }
@@ -105,16 +119,17 @@ export async function normalizeQuestion(item?: TriviaQuestionItem): Promise<Norm
     const question = decodeTriviaValue(item.question);
     const answer = decodeTriviaValue(item.correct_answer);
     const incorrectAnswers = item.incorrect_answers.map(decodeTriviaValue).filter(Boolean);
-    const [translatedQuestion, translatedAnswer, ...translatedIncorrectAnswers] = await Promise.all([
+    const options = shuffle([answer, ...incorrectAnswers]).filter(Boolean);
+    if (options.length < GameConstants.OptionCount) return null;
+    const [translatedQuestion, translatedAnswer, ...translatedOptions] = await Promise.all([
       translateText(question),
       translateText(answer),
-      ...incorrectAnswers.map((option) => translateText(option)),
+      ...options.slice(0, GameConstants.OptionCount).map((option) => translateText(option)),
     ]);
-    const options = shuffle([translatedAnswer, ...translatedIncorrectAnswers]).filter(Boolean);
-    if (options.length < GameConstants.OptionCount) return null;
+
     return {
       question: translatedQuestion,
-      options: options.slice(0, GameConstants.OptionCount),
+      options: translatedOptions.slice(0, GameConstants.OptionCount),
       answer: translatedAnswer,
       difficulty: item.difficulty === 'hard' ? 'Zor' : item.difficulty === 'medium' ? 'Orta' : 'Kolay',
     };

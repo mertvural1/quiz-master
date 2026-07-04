@@ -93,14 +93,14 @@ export function GameBoard({
           disabled={!jokerHalf || selected !== null}
           className="w-full rounded-full border border-fuchsia-400/30 bg-fuchsia-500/10 px-4 py-3 text-sm font-semibold text-fuchsia-200 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
         >
-          {translate('halfJoker', { status: jokerHalf ? 'Aktif' : 'Kullanıldı' })}
+          {translate('halfJoker', { status: jokerHalf ? translate('activeStatus') : translate('usedStatus') })}
         </button>
         <button
           onClick={onAudienceJoker}
           disabled={!jokerAudience || selected !== null}
           className="w-full rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm font-semibold text-amber-200 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
         >
-          {translate('audienceJoker', { status: jokerAudience ? 'Aktif' : 'Kullanıldı' })}
+          {translate('audienceJoker', { status: jokerAudience ? translate('activeStatus') : translate('usedStatus') })}
         </button>
         <button
           onClick={onWithdraw}

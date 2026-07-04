@@ -35,3 +35,8 @@ export enum PrizeLevelValue {
   Fourteen = 500000,
   Fifteen = 1000000,
 }
+
+export enum AppLanguage {
+  Turkish = 'tr',
+  English = 'en',
+}

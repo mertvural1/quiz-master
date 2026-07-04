@@ -1,12 +1,15 @@
+import { useState } from 'react';
 import { StartScreen } from './components/StartScreen';
 import { LoadingScreen } from './components/LoadingScreen';
 import { ResultModal } from './components/ResultModal';
 import { GameBoard } from './components/GameBoard';
 import { PrizePanel } from './components/PrizePanel';
 import { useQuizGame } from './hooks/useQuizGame';
-import { translate } from './lang';
+import { AppLanguage } from './enums/game';
+import { setLanguage, translate } from './lang';
 
 function App() {
+  const [language, setLanguageState] = useState<AppLanguage>(AppLanguage.Turkish);
   const {
     questions,
     currentIndex,
@@ -37,10 +40,15 @@ function App() {
     closeResultModal,
   } = useQuizGame();
 
+  const handleLanguageChange = (nextLanguage: AppLanguage) => {
+    setLanguageState(nextLanguage);
+    setLanguage(nextLanguage);
+  };
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#02061b,_#02040f_40%,_#050d26_100%)] p-2 text-white sm:p-4 md:p-6">
       {!gameStarted && !loading ? (
-        <StartScreen onStart={handleStartGame} />
+        <StartScreen language={language} onLanguageChange={handleLanguageChange} onStart={handleStartGame} />
       ) : loading && questions.length === 0 ? (
         <LoadingScreen />
       ) : (
